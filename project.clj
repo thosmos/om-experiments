@@ -4,4 +4,5 @@
                  [org.clojure/clojurescript "1.7.170"]
                  [org.omcljs/om "1.0.0-alpha25"]
                  [figwheel-sidecar "0.5.0-1" :scope "test"]
-                 [datascript "0.13.2"]])
+                 [datascript "0.13.2"]
+                 [cljs-log "0.2.2"]])
