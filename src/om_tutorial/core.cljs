@@ -114,9 +114,9 @@
     (debug "Render RootView-A")
     (let [{:keys [list/one list/two]} (om/props this)]
       (apply dom/div nil
-        [(dom/h2 nil "List A-A")
+        [(dom/h2 nil "Map List A")
          (list-view-a one)
-         (dom/h2 nil "List A-B")
+         (dom/h2 nil "Map List B")
          (list-view-a two)]))))
 
 (def norm-data (om/tree->db RootView-A init-data true))
@@ -164,13 +164,17 @@
 (defmulti read-b om/dispatch)
 
 (defn get-list
-  "takes a list entity's :db/ident (which is also its attribute
-   for its list of refs) and a pull subquery for its items' attributes
-   and returns a vector of its items
-   Example for list: {:db/ident :my/list :my/list [1 2]}
-                use: (get-list :my/list '[*])
-            returns: [{:db/id 1 :name \"item 1\"} {:db/id 2 :name \"item 2\"}]"
-  [state ident subquery]
+  "params:
+     `conn` - a datascript connection
+     `ident` - a :db/ident key for a list entity that uses the same key
+      for its list of refs
+     `subquery` - a pull subquery for its items' attributes
+   returns: a vector of its items
+   example:
+      entity: {:db/ident :list/foo :list/foo [1 2]}
+         use: (get-list :list/foo '[*])
+     returns: [{:db/id 1 :a/start :no/where} {:db/id 2 :a/goal :now/here}]"
+  [conn ident subquery]
   ; datascript supports datomic's dynamic `subquery`
   ; inside of a query's pull function (but the syntax
   ; is `?subquery` instead of `subquery`)
@@ -180,7 +184,7 @@
         ;_ (debug "get-people-b query" query)
         result (d/q '[:find [(pull ?e ?qry) ...]
                       :in $ ?a ?qry
-                      :where [?e ?a]] @state ident [{ident subquery}])
+                      :where [?e ?a]] @conn ident [{ident subquery}])
         result (-> result first ident)]
     result))
 
@@ -271,9 +275,9 @@
     (debug "Render RootView-B")
     (let [{:keys [list/one list/two]} (om/props this)]
       (apply dom/div nil
-        [(dom/h2 nil "List B-A")
+        [(dom/h2 nil "Datascript List A")
          (list-view-b one)
-         (dom/h2 nil "List B-B")
+         (dom/h2 nil "Datascript List B")
          (list-view-b two)]))))
 
 (def parser-b (om/parser {:read read-b :mutate mutate-b}))
