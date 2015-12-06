@@ -8,6 +8,11 @@
 
 (enable-console-print!)
 
+
+;=======================================
+; map db
+
+
 (def init-data
   {:list/one [{:name "John" :points 0}
               {:name "Mary" :points 0}
@@ -125,18 +130,14 @@
 
 (def parser-a (om/parser {:read read-a :mutate mutate-a}))
 
-(def reconciler-a
-  (om/reconciler
-    {:state st
-     :parser parser-a}))
+(def reconciler-a (om/reconciler {:state st :parser parser-a}))
 
-(om/add-root! reconciler-a
-  RootView-A (gdom/getElement "app-a"))
+(om/add-root! reconciler-a RootView-A (gdom/getElement "app-a"))
 
 
 
 ;============================================================
-
+; Datascript
 
 
 (def conn
@@ -172,12 +173,12 @@
    returns: a vector of its items
    example:
       entity: {:db/ident :list/foo :list/foo [1 2]}
-         use: (get-list :list/foo '[*])
+         use: (get-list conn :list/foo '[*])
      returns: [{:db/id 1 :a/start :no/where} {:db/id 2 :a/goal :now/here}]"
   [conn ident subquery]
   ; datascript supports datomic's dynamic `subquery`
-  ; inside of a query's pull function (but the syntax
-  ; is `?subquery` instead of `subquery`)
+  ; inside of a query's pull function, but the syntax
+  ; is `?subquery` instead of `subquery`
   ; Example: (d/q '[:find [(pull ?e ?subquery) ...] :in $ ?a ?subquery
   ; :where [?e ?a]] @state :list/one '[{:list/one [*]}])
   (let [subquery (or subquery '[*])
