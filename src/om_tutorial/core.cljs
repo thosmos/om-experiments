@@ -166,21 +166,22 @@
 
 (defn get-list
   "params:
-     `conn` - a datascript connection
+     `db` - a datascript database
      `ident` - a :db/ident key for a list entity that uses the same key
       for its list of refs
      `subquery` - a pull subquery for its items' attributes
    returns: a vector of its items
    example:
       entity: {:db/ident :list/foo :list/foo [1 2]}
-         use: (get-list conn :list/foo '[*])
-     returns: [{:db/id 1 :a/start :no/where} {:db/id 2 :a/goal :now/here}]"
+         use: (get-list :list/foo '[*])
+      return: [{:db/id 1 :a/start :no/where} {:db/id 2 :a/goal :now/here}]"
   [conn ident subquery]
-  ; datascript supports datomic's dynamic `subquery`
-  ; inside of a query's pull function, but the syntax
-  ; is `?subquery` instead of `subquery`
-  ; Example: (d/q '[:find [(pull ?e ?subquery) ...] :in $ ?a ?subquery
-  ; :where [?e ?a]] @state :list/one '[{:list/one [*]}])
+  ; Datascript supports Datomic's dynamic `subquery` inside of a query's pull
+  ; function, but the syntax is `?subquery` instead of `subquery`.
+  ; Example: (d/q '[:find [(pull ?e ?subquery) ...]
+  ;                 :in $ ?a ?subquery
+  ;                 :where [?e ?a]]
+  ;            db :list/one '[{:list/one [*]}])
   (let [subquery (or subquery '[*])
         ;_ (debug "get-people-b query" query)
         result (d/q '[:find [(pull ?e ?qry) ...]
@@ -201,14 +202,25 @@
         _ (debug "READ-B :list/two" r)]
     {:value r}))
 
-(defn dbfun! [db fun dbid attr]
+(defn dbfun!
+  "Accepts a db, an entity ref, an attribute, and a function that modifies
+     the attribute's value.
+   Reads the entity's attribute value, applies the function, and returns
+     a data structure for `(transact!)`
+   params:
+     `db` - a datascript database
+     `fun` - a function that accepts `attr`'s value and returns `new-val`
+     `dbid` - an entity id or a lookup ref ex: [:a/unique-key :a/unique-value]
+     `attr` - an attribute key on the entity
+   return: [{:db/id dbid attr new-val}]
+   example: (d/transact! conn [[:db.fn/call dbfun! fun [:lookup :ref] :attr]])"
+  [db fun dbid attr]
   (let [q [:db/id attr]
         ent (d/pull db q dbid)
         old-val (attr ent)
         new-val (fun old-val)
-        _ (debug "dbfun!" dbid attr old-val new-val)
         tx [{:db/id dbid attr new-val}]
-        _ (debug "dbfun! tx" tx)]
+        ]
     tx))
 
 (defn txpoints! [state fun name]
@@ -290,3 +302,120 @@
 
 (om/add-root! reconciler-b
   RootView-B (gdom/getElement "app-b"))
+
+
+
+
+
+;============================================================
+; Datascript :db/id
+
+
+(def conn-c
+  (d/create-conn
+    {:db/ident {:db/unique :db.unique/identity}
+     :list/one {:db/valueType :db.type/ref :db/cardinality :db.cardinality/many}
+     :list/two {:db/valueType :db.type/ref :db/cardinality :db.cardinality/many}}))
+
+(d/transact! conn-c
+  [{:db/id 1 :name "John" :points 0}
+   {:db/id 2 :name "Mary" :points 0 :age 27}
+   {:db/id 3 :name "Bob" :points 0}
+   {:db/id 4 :name "Gwen" :points 0}
+   {:db/id 5 :name "Jeff" :points 0}
+   {:db/ident :list/one :list/one [1 2 3]}
+   {:db/ident :list/two :list/two [2 4 5]}])
+
+(defmulti read-c om/dispatch)
+
+(defmethod read-c :list/one
+  [{:keys [state query] :as env} key params]
+  (let [r (get-list state key query)
+        _ (debug "READ-C :list/one" r)]
+    {:value r}))
+
+(defmethod read-c :list/two
+  [{:keys [state query] :as env} key params]
+  (let [r (get-list state key query)
+        _ (debug "READ-C :list/two" r)]
+    {:value r}))
+
+(defn txpoints-c! [state fun id]
+  (d/transact! state [[:db.fn/call dbfun! fun id :points]]))
+
+(defmulti mutate-c om/dispatch)
+
+(defmethod mutate-c 'points/increment
+  [{:keys [state]} _ {:keys [:db/id]}]
+  (let [_ (debug "MUTATE-C 'points/increment")]
+    {:action (fn [] (txpoints-c! state inc id))}))
+
+(defmethod mutate-c 'points/decrement
+  [{:keys [state]} _ {:keys [:db/id]}]
+  (let [_ (debug "MUTATE-C 'points/decrement")
+        fun #(let [n (dec %)] (if (neg? n) 0 n))]
+    {:action (fn [] (txpoints-c! state fun id))}))
+
+(defui Person-C
+  static om/Ident
+  (ident [this {:keys [:db/id]}]
+    [:db/id id])
+  static om/IQuery
+  (query [this]
+    '[:db/id :name :points])
+  Object
+  (render [this]
+    (debug "Render Person-C" (-> this om/props :name))
+    (let [{:keys [points name] :as props} (om/props this)]
+      (dom/li nil
+        (dom/label nil (str name ", points: " points))
+        (dom/button
+          #js {:onClick
+               (fn [e]
+                 (om/transact! this
+                   `[(points/increment ~props)]))}
+          "+")
+        (dom/button
+          #js {:onClick
+               (fn [e]
+                 (om/transact! this
+                   `[(points/decrement ~props)]))}
+          "-")))))
+
+(def person-c (om/factory Person-C {:keyfn :db/id}))
+
+(defui ListView-C
+  Object
+  (render [this]
+    (debug "Render ListView-C" (-> this om/path first))
+    (let [list (om/props this)]
+      (apply dom/ul nil
+        (map person-c list)))))
+
+(def list-view-c (om/factory ListView-C))
+
+(defui RootView-C
+  static om/IQuery
+  (query [this]
+    (let [subquery (om/get-query Person-C)
+          _ (debug "RootView-C subquery" subquery)]
+      `[{:list/one ~subquery} {:list/two ~subquery}]))
+  Object
+  (render [this]
+    (debug "Render RootView-C")
+    (let [{:keys [list/one list/two]} (om/props this)]
+      (apply dom/div nil
+        [(dom/h2 nil "Datascript-ID List A")
+         (list-view-c one)
+         (dom/h2 nil "Datascript-ID List B")
+         (list-view-c two)]))))
+
+(def parser-c (om/parser {:read read-c :mutate mutate-c}))
+
+(def reconciler-c
+  (om/reconciler
+    {:state conn-c
+     :parser parser-c}))
+
+(om/add-root! reconciler-c
+  RootView-C (gdom/getElement "app-c"))
