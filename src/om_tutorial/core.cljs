@@ -318,13 +318,13 @@
      :list/two {:db/valueType :db.type/ref :db/cardinality :db.cardinality/many}}))
 
 (d/transact! conn-c
-  [{:db/id 1 :name "John" :points 0}
-   {:db/id 2 :name "Mary" :points 0 :age 27}
-   {:db/id 3 :name "Bob" :points 0}
-   {:db/id 4 :name "Gwen" :points 0}
-   {:db/id 5 :name "Jeff" :points 0}
-   {:db/ident :list/one :list/one [1 2 3]}
-   {:db/ident :list/two :list/two [2 4 5]}])
+  [{:db/id -1 :name "John" :points 0}
+   {:db/id -2 :name "Mary" :points 0 :age 27}
+   {:db/id -3 :name "Bob" :points 0}
+   {:db/id -4 :name "Gwen" :points 0}
+   {:db/id -5 :name "Jeff" :points 0}
+   {:db/ident :list/one :list/one [-1 -2 -3]}
+   {:db/ident :list/two :list/two [-2 -4 -5]}])
 
 (defmulti read-c om/dispatch)
 
