@@ -2,6 +2,13 @@
   :description "An experiment"
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.170"]
-                 [org.omcljs/om "1.0.0-alpha25"]
+                 [org.omcljs/om "1.0.0-alpha36"]
                  [figwheel-sidecar "0.5.0-1" :scope "test"]
-                 [datascript "0.13.2"]])
+                 ;[datascript "0.13.2"]
+                 [cljs-log "0.2.2"]
+                 [compassus "0.1.0"]
+                 [kibu/pushy "0.3.6"]
+                 [bidi "1.25.1"]
+                 [cljsjs/firebase           "3.0.5-rc2-0"]
+                 [degree9/firebase-cljs "0.2.0"]
+                 ])
