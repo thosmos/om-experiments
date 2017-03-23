@@ -1,7 +1,8 @@
 (ns om-experiments.core
   (:require [goog.dom :as gdom]
             [om.next :as om :refer-macros [defui]]
-            [om.dom :as dom]))
+            [om.dom :as dom]
+            [cljsjs.quill]))
 
 (enable-console-print!)
 
@@ -10,11 +11,15 @@
 (defui HelloWorld
   Object
   (componentDidMount [this]
-    (println "Component Did Mount"))
+    (let [_ (println "Starting Quill")
+          editor (js/Quill. "#description" #js {:debug "log" :theme "snow"})
+          _ (println "Started Quill")]))
 
   (render [this]
     (dom/div nil
-             (dom/div nil "Hello World, Om.Next!"))))
+             (dom/div nil "Hello World!")
+             (dom/div nil "Another hello")
+             (dom/div #js {:id "description"}))))
 
 (def hello (om/factory HelloWorld))
 
